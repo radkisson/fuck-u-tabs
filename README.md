@@ -63,20 +63,6 @@ chmod +x start.sh
 
 Same behavior.
 
-### Manual usage
-
-```bash
-# Activate the venv first
-source venv/bin/activate          # Linux/Mac
-venv\Scripts\activate.bat         # Windows
-
-# Scrape a tab
-python app.py "https://tabs.ultimate-guitar.com/tab/artist/song-chords-12345"
-
-# Clean up pasted text (stdin mode)
-python app.py --clean
-```
-
 ---
 
 ## Output

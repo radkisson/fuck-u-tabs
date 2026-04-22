@@ -116,6 +116,6 @@ If you have a UG subscription and feel it's worth it, keep it. This tool is for 
 
 ---
 
-## Contributing
+## Roadmap
 
-PRs welcome. If it works on other tab sites (AZChords, Songsterr, etc.), even better.
+Currently targets Ultimate Guitar. If you need support for another tab site, open an issue — I'll look into it. The tool is actively maintained and will be updated as sites change their structure.

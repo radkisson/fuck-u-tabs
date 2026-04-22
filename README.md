@@ -113,3 +113,9 @@ If you have a UG subscription and feel it's worth it, keep it. This tool is for 
 | `curl_cffi` | HTTP with Chrome TLS impersonation (Cloudflare bypass) |
 | `beautifulsoup4` | HTML parsing |
 | `python-docx` | `.docx` generation |
+
+---
+
+## Contributing
+
+PRs welcome. If it works on other tab sites (AZChords, Songsterr, etc.), even better.

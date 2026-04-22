@@ -26,6 +26,7 @@ They didn't create the content. They didn't pay the people who did. They just bu
 - In the `.docx`: chord names in **red bold**, tab notation in grey, section headers bold
 - Filenames auto-generated from the URL: `Neil Young - Natural Beauty.txt`
 - Files saved in an `output/` folder
+- Downloads **Guitar Pro** (`.gp`, `.gp4`, `.gp5`) files — requires a free UG account (see below)
 
 ---
 
@@ -99,6 +100,25 @@ If you have a UG subscription and feel it's worth it, keep it. This tool is for 
 | `curl_cffi` | HTTP with Chrome TLS impersonation (Cloudflare bypass) |
 | `beautifulsoup4` | HTML parsing |
 | `python-docx` | `.docx` generation |
+
+---
+
+## Guitar Pro tabs
+
+Guitar Pro tabs (`.gp`, `.gp4`, `.gp5`) are handled separately from text tabs. UG gates the download behind a free account — no paid subscription needed, just a login.
+
+**First run:**
+
+The tool will open a browser window (Microsoft Edge or Chrome) and ask you to sign in to Ultimate Guitar. Once you're logged in, press Enter in the terminal. The session is saved locally and reused automatically on subsequent runs — you won't be asked to log in again unless the session expires.
+
+```
+→ Guitar Pro tab detected.
+→ Downloading...
+→ If a CAPTCHA appears in the browser, solve it.
+✓ output/Iron Maiden - 2 Minutes to Midnight.gp5
+```
+
+The browser window closes automatically once the file is saved.
 
 ---
 

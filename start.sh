@@ -10,6 +10,7 @@ source venv/bin/activate
 
 pip install -q --upgrade pip
 pip install -q -r requirements.txt
+playwright install chromium --quiet
 
 while true; do
     echo ""

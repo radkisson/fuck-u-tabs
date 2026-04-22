@@ -10,6 +10,7 @@ call venv\Scripts\activate.bat
 
 python.exe -m pip install -q --upgrade pip
 pip install -q -r requirements.txt
+playwright install
 
 :loop
 echo.

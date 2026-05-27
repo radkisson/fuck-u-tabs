@@ -1,0 +1,4 @@
+beautifulsoup4
+curl_cffi
+python-docx
+playwright

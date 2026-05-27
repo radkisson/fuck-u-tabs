@@ -1,59 +1,44 @@
-# 🎸 FuckYouUG — Ultimate Guitar Tab Scraper
+# 🎸 fuck-u-tabs
 
-> *Because stealing from the community and calling it a subscription service deserves a response.*
+> Scrape, clean and export Ultimate Guitar tabs to `.txt` and `.docx` — with proper formatting.
 
----
-
-## The deal
-
-**Ultimate Guitar** hosts millions of guitar tabs. Almost none of them were written by Ultimate Guitar.
-
-They were written by musicians — hobbyists, bedroom guitarists, music nerds — who transcribed songs by ear and uploaded them **for free**, for the community, because that's what musicians do. For decades, UG was just a place where that goodwill lived.
-
-Then came the pivot. Paywalls. Subscriptions. A mobile app that locks basic features. And, the cherry on top: **intentionally broken copy-paste** — invisible Unicode characters, split divs, scrambled layouts — so you can't even grab a tab without paying for their PDF export.
-
-They didn't create the content. They didn't pay the people who did. They just built a fence around someone else's garden and started charging admission.
-
-**This tool gives you back what was always yours.**
+Fork of [FuckYouUG](https://github.com/SeBL4RD/FuckYouUG) with bug fixes applied.
 
 ---
 
 ## What it does
 
-- Scrapes any Ultimate Guitar tab page and outputs a clean, properly formatted file
-- Bypasses Cloudflare's TLS fingerprinting (no browser, no cookies, no bullshit)
+- Scrapes any Ultimate Guitar tab page and saves a clean, properly formatted file
+- Bypasses Cloudflare's TLS fingerprinting — no browser needed for regular tabs
 - Exports to **`.txt`** and **`.docx`** simultaneously
-- In the `.docx`: chord names in **red bold**, tab notation in grey, section headers bold
-- Filenames auto-generated from the URL: `Neil Young - Natural Beauty.txt`
-- Files saved in an `output/` folder
-- Downloads **Guitar Pro** (`.gp`, `.gp4`, `.gp5`) files — requires a free UG account (see below)
+- `.docx` output: chord names in **red bold**, tab lines in grey, section headers bold
+- Filenames auto-generated from the page: `Neil Young - Natural Beauty.txt`
+- All files saved in an `output/` folder
+- Downloads **Guitar Pro** (`.gp`, `.gp4`, `.gp5`) files via a headless browser — requires a free UG account
+- **Bulk mode**: process a whole list of URLs from a file in one go
 
 ---
 
 ## Requirements
 
 - Python 3.10+
-- That's it. Everything else is handled automatically.
+- Everything else is installed automatically by the startup scripts.
 
 ---
 
-## Installation & Usage
+## Quick start
 
 ### Windows
 
-Just double-click **`start.bat`**.
-
-It will:
-1. Create a Python virtual environment if none exists
-2. Install all dependencies silently
+Double-click **`start.bat`**. It will:
+1. Create a virtual environment if one doesn't exist
+2. Install all dependencies
 3. Drop you into an interactive prompt
 
 ```
 Paste your Ultimate Guitar link here (or type exit to quit):
 > https://tabs.ultimate-guitar.com/tab/neil-young/natural-beauty-chords-88512
 ```
-
-Your files appear in `output/` immediately.
 
 ### Linux / macOS
 
@@ -62,13 +47,22 @@ chmod +x start.sh
 ./start.sh
 ```
 
-Same behavior.
+### Manual (any OS)
+
+```bash
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+playwright install chromium
+
+python app.py "https://tabs.ultimate-guitar.com/tab/..."
+```
 
 ---
 
 ## Output
 
-For a URL like `.../tab/neil-young/natural-beauty-chords-88512`, you get:
+For `.../tab/neil-young/natural-beauty-chords-88512`:
 
 ```
 output/
@@ -76,20 +70,54 @@ output/
   Neil Young - Natural Beauty.docx
 ```
 
-The `.docx` uses Courier New throughout (essential for tab alignment), with:
+The `.docx` uses Courier New throughout (essential for tab alignment):
 - 🔴 **Chord names** — red bold
-- ⬜ Tab notation — grey
-- **[Section headers]** — bold
+- ▪ Tab lines — grey monospace
+- **[Verse]**, **[Chorus]**, etc. — bold
 
 ---
 
-## Ethics
+## Bulk mode
 
-This tool does not circumvent any payment system. It does not access premium or paid content. It scrapes publicly accessible tab pages — the same ones you can read for free in your browser — and formats them properly.
+Put one URL per line in a text file (lines starting with `#` are treated as comments):
 
-The only thing it bypasses is the deliberate sabotage of copy-paste that UG introduced to funnel users toward paid exports.
+```
+# My setlist
+https://tabs.ultimate-guitar.com/tab/...
+https://tabs.ultimate-guitar.com/tab/...
+```
 
-If you have a UG subscription and feel it's worth it, keep it. This tool is for everyone who thinks that hosting community-written content behind a paywall, while refusing to compensate the people who wrote it, is not a business model worth supporting.
+Then run:
+
+```bash
+python bulk.py my_urls.txt
+```
+
+A 1.5-second delay is applied between requests to avoid rate limiting. GP tabs that require an interactive login are skipped automatically in bulk mode.
+
+---
+
+## Guitar Pro tabs
+
+GP tabs (`.gp`, `.gp4`, `.gp5`) require a **free** UG account — no paid subscription.
+
+On first run, a browser window opens and asks you to sign in. Once logged in, press Enter in the terminal. The session is saved in `session/` and reused on subsequent runs.
+
+```
+→ Guitar Pro tab detected.
+→ Downloading...
+→ If a CAPTCHA appears in the browser, solve it.
+✓ output/Iron Maiden - 2 Minutes to Midnight.gp5
+```
+
+---
+
+## Other options
+
+```
+python app.py --clean       # Read raw tab text from stdin, print cleaned output
+python app.py --dump <url>  # Save raw HTML to ug_debug.html for debugging
+```
 
 ---
 
@@ -99,42 +127,19 @@ If you have a UG subscription and feel it's worth it, keep it. This tool is for 
 |---|---|
 | `curl_cffi` | HTTP with Chrome TLS impersonation (Cloudflare bypass) |
 | `beautifulsoup4` | HTML parsing |
-| `python-docx` | `.docx` generation |
+| `python-docx` | `.docx` export |
 | `playwright` | Headless browser for Guitar Pro downloads |
 
 ---
 
-## Guitar Pro tabs
+## Ethics
 
-Guitar Pro tabs (`.gp`, `.gp4`, `.gp5`) are handled separately from text tabs. UG gates the download behind a free account — no paid subscription needed, just a login.
+This tool scrapes publicly accessible tab pages — the same ones visible for free in your browser. It does not bypass any paywall or access paid content.
 
-**First run:**
-
-The tool will open a browser window (Microsoft Edge or Chrome) and ask you to sign in to Ultimate Guitar. Once you're logged in, press Enter in the terminal. The session is saved locally and reused automatically on subsequent runs — you won't be asked to log in again unless the session expires.
-
-```
-→ Guitar Pro tab detected.
-→ Downloading...
-→ If a CAPTCHA appears in the browser, solve it.
-✓ output/Iron Maiden - 2 Minutes to Midnight.gp5
-```
-
-The browser window closes automatically once the file is saved.
-
----
-
-## Bulk mode
-
-To download a list of tabs at once, put one URL per line in a text file (lines starting with `#` are ignored) and run:
-
-```bash
-python bulk.py my_urls.txt
-```
-
-A 1.5-second delay is applied between requests. GP tabs that require an interactive login are skipped automatically in bulk mode.
+The only thing it works around is the deliberate copy-paste sabotage (invisible Unicode characters, scrambled layouts) that UG added to push users toward paid PDF exports.
 
 ---
 
 ## Roadmap
 
-Currently targets Ultimate Guitar. If you need support for another tab site, open an issue — I'll look into it. The tool is actively maintained and will be updated as sites change their structure.
+Currently targets Ultimate Guitar. Open an issue if you need support for another tab site.

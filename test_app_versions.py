@@ -28,8 +28,12 @@ class ListUgVersionsTests(unittest.TestCase):
         )
 
     def test_list_versions_returns_empty_for_invalid_input_url(self):
-        html = "https://tabs.ultimate-guitar.com/tab/radiohead/creep-chords-99"
-        self.assertEqual(list_ug_versions("https://example.com/whatever", html), [])
+        sample_html = '<a href="https://tabs.ultimate-guitar.com/tab/radiohead/creep-chords-99">v</a>'
+        self.assertEqual(list_ug_versions("https://example.com/whatever", sample_html), [])
+
+    def test_list_versions_returns_empty_when_no_candidates_exist(self):
+        url = "https://tabs.ultimate-guitar.com/tab/radiohead/creep-chords-12"
+        self.assertEqual(list_ug_versions(url, "<html><body>No tab links</body></html>"), [])
 
 
 if __name__ == "__main__":

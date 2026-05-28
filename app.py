@@ -330,12 +330,14 @@ def filename_from_url(url: str) -> str:
 
 
 def _song_key(artist_slug: str, song_slug: str) -> tuple[str, tuple[str, ...]]:
+    """Normalize artist/song slugs into a comparable key (using TAB_TYPES filtering)."""
     song_slug = re.sub(r'-\d+$', '', song_slug)
     parts = tuple(p for p in song_slug.split('-') if p and p.lower() not in TAB_TYPES)
     return artist_slug.lower(), parts
 
 
 def list_ug_versions(url: str, html: str) -> list[str]:
+    """Extract same-song Ultimate Guitar tab version URLs from page HTML."""
     source = html.replace('\\/', '/')
     candidates = re.findall(r'https?://tabs\.ultimate-guitar\.com/tab/[^\s"\'<>]+', source)
 
@@ -543,7 +545,7 @@ Exemples :
         else:
             print("Available versions:")
             for i, version_url in enumerate(versions, 1):
-                print(f"{i:2d}. {version_url}")
+                print(f"{i}. {version_url}")
         print("\nNote: Premium/paid tabs are not accessible through this tool.")
         return
 

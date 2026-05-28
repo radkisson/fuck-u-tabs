@@ -332,17 +332,18 @@ def filename_from_url(url: str) -> str:
 
 def _song_key(artist_slug: str, song_slug: str) -> tuple[str, tuple[str, ...]]:
     """Normalize artist/song slugs into a comparable key (using TAB_TYPES filtering)."""
-    slug = song_slug.lower()
-    had_version_suffix = bool(re.search(r'-\d+$', slug))
-    slug = re.sub(r'-\d+$', '', slug)
+    slug = song_slug
+    id_match = re.search(r'-\d+$', slug)
+    if id_match:
+        slug = slug[:id_match.start()]
+    slug = slug.lower()
 
     # Only strip one trailing tab-type suffix, to avoid over-normalizing song titles.
-    if had_version_suffix:
-        for tab_type in sorted(TAB_TYPES, key=len, reverse=True):
-            suffix = f'-{tab_type}'
-            if slug.endswith(suffix):
-                slug = slug[:-len(suffix)]
-                break
+    for tab_type in sorted(TAB_TYPES, key=len, reverse=True):
+        suffix = f'-{tab_type}'
+        if slug.endswith(suffix):
+            slug = slug[:-len(suffix)]
+            break
 
     parts = tuple(p for p in slug.split('-') if p)
     return artist_slug.lower(), parts
@@ -361,11 +362,13 @@ def list_ug_versions(url: str, html: str) -> list[str]:
     """Extract same-song Ultimate Guitar tab version URLs from page HTML."""
     source = _html.unescape(html).replace('\\/', '/')
     decoded = unquote(source)
-    blob = source + '\n' + decoded
-    candidates = re.findall(
-        r'(?:https?://(?:tabs\.)?ultimate-guitar\.com)?/tab/[^\s"\'<>\\]+',
-        blob
+    contents = (source,) if decoded == source else (source, decoded)
+    candidates: list[str] = []
+    pattern = re.compile(
+        r'https?://tabs\.ultimate-guitar\.com/tab/[^\s"\'<>]+|(?:(?<=["\'\s])|^)/tab/[^\s"\'<>]+'
     )
+    for content in contents:
+        candidates.extend(pattern.findall(content))
 
     parsed_input = urlparse(url)
     m = re.match(r'^/tab/([^/]+)/([^/?#]+)$', parsed_input.path)
@@ -569,7 +572,7 @@ Exemples :
             sys.exit(1)
         try:
             html = fetch(args.url)
-        except Exception as e:
+        except (requests.exceptions.RequestException, TimeoutError, OSError) as e:
             print(f"Unable to fetch URL for version listing: {e}", file=sys.stderr)
             sys.exit(1)
         versions = list_ug_versions(args.url, html)

@@ -1,9 +1,11 @@
-import unittest
 import io
 import contextlib
+import unittest
 from unittest.mock import patch
 
-from app import list_ug_versions, _is_ug_tab_url, main
+from app import list_ug_versions, _is_ug_tab_url, main, requests
+
+VALID_UG_TAB_URL = "https://tabs.ultimate-guitar.com/tab/radiohead/creep-chords-12"
 
 
 class ListUgVersionsTests(unittest.TestCase):
@@ -54,7 +56,7 @@ class ListUgVersionsTests(unittest.TestCase):
             ],
         )
 
-    def test_list_versions_does_not_over_normalize_internal_tab_word(self):
+    def test_list_versions_preserves_tab_word_in_song_title(self):
         url = "https://tabs.ultimate-guitar.com/tab/example/my-tab-song-chords-1"
         html = """
         "https:\\/\\/tabs.ultimate-guitar.com\\/tab\\/example\\/my-tab-song-tabs-2"
@@ -68,7 +70,7 @@ class ListUgVersionsTests(unittest.TestCase):
 
 class UgTabUrlValidationTests(unittest.TestCase):
     def test_is_ug_tab_url_requires_exact_host(self):
-        self.assertTrue(_is_ug_tab_url("https://tabs.ultimate-guitar.com/tab/radiohead/creep-chords-12"))
+        self.assertTrue(_is_ug_tab_url(VALID_UG_TAB_URL))
         self.assertFalse(_is_ug_tab_url("https://tabs.ultimate-guitar.com.evil.org/tab/radiohead/creep-chords-12"))
         self.assertFalse(_is_ug_tab_url("https://ultimate-guitar.com/tab/radiohead/creep-chords-12"))
 
@@ -76,9 +78,11 @@ class UgTabUrlValidationTests(unittest.TestCase):
 class ListVersionsCliErrorTests(unittest.TestCase):
     def test_list_versions_handles_fetch_error_cleanly(self):
         stderr = io.StringIO()
-        with patch("sys.argv", ["app.py", "--list-versions", "https://tabs.ultimate-guitar.com/tab/radiohead/creep-chords-12"]), \
-             patch("app.fetch", side_effect=RuntimeError("dns failure")), \
-             contextlib.redirect_stderr(stderr):
+        with (
+            patch("sys.argv", ["app.py", "--list-versions", VALID_UG_TAB_URL]),
+            patch("app.fetch", side_effect=requests.exceptions.RequestException("dns failure")),
+            contextlib.redirect_stderr(stderr),
+        ):
             with self.assertRaises(SystemExit) as cm:
                 main()
 

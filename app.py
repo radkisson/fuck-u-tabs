@@ -13,7 +13,8 @@ import re
 import json
 import argparse
 import os
-from urllib.parse import urlparse
+import html as _html
+from urllib.parse import urlparse, urljoin, unquote
 
 try:
     from curl_cffi import requests
@@ -331,15 +332,40 @@ def filename_from_url(url: str) -> str:
 
 def _song_key(artist_slug: str, song_slug: str) -> tuple[str, tuple[str, ...]]:
     """Normalize artist/song slugs into a comparable key (using TAB_TYPES filtering)."""
-    song_slug = re.sub(r'-\d+$', '', song_slug)
-    parts = tuple(p for p in song_slug.split('-') if p and p.lower() not in TAB_TYPES)
+    slug = song_slug.lower()
+    had_version_suffix = bool(re.search(r'-\d+$', slug))
+    slug = re.sub(r'-\d+$', '', slug)
+
+    # Only strip one trailing tab-type suffix, to avoid over-normalizing song titles.
+    if had_version_suffix:
+        for tab_type in sorted(TAB_TYPES, key=len, reverse=True):
+            suffix = f'-{tab_type}'
+            if slug.endswith(suffix):
+                slug = slug[:-len(suffix)]
+                break
+
+    parts = tuple(p for p in slug.split('-') if p)
     return artist_slug.lower(), parts
+
+
+def _is_ug_tab_url(url: str) -> bool:
+    parsed = urlparse(url)
+    if parsed.scheme not in ('http', 'https'):
+        return False
+    if parsed.netloc.lower() != 'tabs.ultimate-guitar.com':
+        return False
+    return bool(re.match(r'^/tab/[^/]+/[^/?#]+$', parsed.path))
 
 
 def list_ug_versions(url: str, html: str) -> list[str]:
     """Extract same-song Ultimate Guitar tab version URLs from page HTML."""
-    source = html.replace('\\/', '/')
-    candidates = re.findall(r'https?://tabs\.ultimate-guitar\.com/tab/[^\s"\'<>]+', source)
+    source = _html.unescape(html).replace('\\/', '/')
+    decoded = unquote(source)
+    blob = source + '\n' + decoded
+    candidates = re.findall(
+        r'(?:https?://(?:tabs\.)?ultimate-guitar\.com)?/tab/[^\s"\'<>\\]+',
+        blob
+    )
 
     parsed_input = urlparse(url)
     m = re.match(r'^/tab/([^/]+)/([^/?#]+)$', parsed_input.path)
@@ -350,7 +376,10 @@ def list_ug_versions(url: str, html: str) -> list[str]:
     seen = set()
     versions: list[str] = []
     for candidate in candidates:
-        parsed = urlparse(candidate)
+        candidate_url = urljoin('https://tabs.ultimate-guitar.com', candidate)
+        parsed = urlparse(candidate_url)
+        if parsed.netloc.lower() != 'tabs.ultimate-guitar.com':
+            continue
         cm = re.match(r'^/tab/([^/]+)/([^/?#]+)$', parsed.path)
         if not cm:
             continue
@@ -535,10 +564,14 @@ Exemples :
         sys.exit(1)
 
     if args.list_versions:
-        if 'ultimate-guitar' not in args.url:
+        if not _is_ug_tab_url(args.url):
             print("Version listing is only supported for Ultimate Guitar URLs.", file=sys.stderr)
             sys.exit(1)
-        html = fetch(args.url)
+        try:
+            html = fetch(args.url)
+        except Exception as e:
+            print(f"Unable to fetch URL for version listing: {e}", file=sys.stderr)
+            sys.exit(1)
         versions = list_ug_versions(args.url, html)
         if not versions:
             print("No alternate versions found for this song.")

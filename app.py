@@ -13,6 +13,7 @@ import re
 import json
 import argparse
 import os
+from urllib.parse import urlparse
 
 try:
     from curl_cffi import requests
@@ -328,6 +329,39 @@ def filename_from_url(url: str) -> str:
     return f"{safe}.txt"
 
 
+def _song_key(artist_slug: str, song_slug: str) -> tuple[str, tuple[str, ...]]:
+    song_slug = re.sub(r'-\d+$', '', song_slug)
+    parts = tuple(p for p in song_slug.split('-') if p and p.lower() not in TAB_TYPES)
+    return artist_slug.lower(), parts
+
+
+def list_ug_versions(url: str, html: str) -> list[str]:
+    source = html.replace('\\/', '/')
+    candidates = re.findall(r'https?://tabs\.ultimate-guitar\.com/tab/[^\s"\'<>]+', source)
+
+    parsed_input = urlparse(url)
+    m = re.match(r'^/tab/([^/]+)/([^/?#]+)$', parsed_input.path)
+    if not m:
+        return []
+    target_key = _song_key(m.group(1), m.group(2))
+
+    seen = set()
+    versions: list[str] = []
+    for candidate in candidates:
+        parsed = urlparse(candidate)
+        cm = re.match(r'^/tab/([^/]+)/([^/?#]+)$', parsed.path)
+        if not cm:
+            continue
+        if _song_key(cm.group(1), cm.group(2)) != target_key:
+            continue
+        normalized = f"https://tabs.ultimate-guitar.com{parsed.path}"
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        versions.append(normalized)
+    return versions
+
+
 # ─── Export DOCX ─────────────────────────────────────────────────────────────
 
 _CHORD_RE = re.compile(
@@ -486,6 +520,8 @@ Exemples :
                         help='Clean mode: read from stdin')
     parser.add_argument('--dump', action='store_true',
                         help='Save raw HTML to ug_debug.html (debug)')
+    parser.add_argument('--list-versions', action='store_true',
+                        help='List available UG versions for this tab URL and exit')
     args = parser.parse_args()
 
     if args.clean:
@@ -495,6 +531,21 @@ Exemples :
     if not args.url:
         parser.print_help()
         sys.exit(1)
+
+    if args.list_versions:
+        if 'ultimate-guitar' not in args.url:
+            print("Version listing is only supported for Ultimate Guitar URLs.", file=sys.stderr)
+            sys.exit(1)
+        html = fetch(args.url)
+        versions = list_ug_versions(args.url, html)
+        if not versions:
+            print("No alternate versions found for this song.")
+        else:
+            print("Available versions:")
+            for i, version_url in enumerate(versions, 1):
+                print(f"{i:2d}. {version_url}")
+        print("\nNote: Premium/paid tabs are not accessible through this tool.")
+        return
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 

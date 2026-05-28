@@ -16,6 +16,7 @@ Fork of [FuckYouUG](https://github.com/SeBL4RD/FuckYouUG) with bug fixes applied
 - All files saved in an `output/` folder
 - Downloads **Guitar Pro** (`.gp`, `.gp4`, `.gp5`) files via a headless browser — requires a free UG account
 - **Bulk mode**: process a whole list of URLs from a file in one go
+- **Version check mode**: list alternate UG tab/chord versions for the same song before downloading
 
 ---
 
@@ -117,6 +118,7 @@ On first run, a browser window opens and asks you to sign in. Once logged in, pr
 ```
 python app.py --clean       # Read raw tab text from stdin, print cleaned output
 python app.py --dump <url>  # Save raw HTML to ug_debug.html for debugging
+python app.py --list-versions "<url>"  # List available versions for the same song
 ```
 
 ---

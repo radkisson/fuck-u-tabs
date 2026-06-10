@@ -1,4 +1,66 @@
+# ─── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+dist/
+build/
+*.manifest
+*.spec
+
+# ─── Virtual environment ───────────────────────────────────────────────────────
+.venv/
 venv/
+env/
+.env/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ─── Project outputs ───────────────────────────────────────────────────────────
 output/
-cookies.txt
+*.docx
+ug_debug.html
+bulk_failed.txt
+*.gp
+
+# ─── Browser session / cookies ─────────────────────────────────────────────────
 session/
+cookies.txt
+*.session
+
+# ─── Environment & secrets ─────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── OS junk ───────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ─── Editors & IDEs ────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# ─── Logs & temp ───────────────────────────────────────────────────────────────
+*.log
+*.tmp
+*.temp
+tmp/
+
+# ─── Misc ──────────────────────────────────────────────────────────────────────
+*.bak
+*.orig
+.python-version

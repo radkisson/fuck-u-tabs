@@ -80,13 +80,10 @@ def clean_text(raw: str) -> str:
 # ─── Scraping ─────────────────────────────────────────────────────────────────
 
 def fetch(url: str, cookie_str: str = '') -> str:
-    headers: dict[str, str] = {
-        'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
-        'DNT': '1',
-    }
+    headers: dict[str, str] = {}
     if cookie_str:
         headers['Cookie'] = cookie_str
-    resp = requests.get(url, impersonate="chrome124", timeout=20, headers=headers)
+    resp = requests.get(url, impersonate="firefox144", timeout=20, headers=headers)
     if resp.status_code == 403:
         print("  403 Forbidden — Cloudflare is still blocking.", file=sys.stderr)
         resp.raise_for_status()
@@ -94,28 +91,31 @@ def fetch(url: str, cookie_str: str = '') -> str:
     return resp.text
 
 
-def get_ug_tab_info(html: str) -> tuple[str | None, str]:
+def get_ug_tab_info(html: str) -> tuple[str | None, str, str, str]:
     """
-    Parse le js-store UG. Retourne (content, tab_type).
+    Parse le js-store UG. Retourne (content, tab_type, song_name, artist_name).
     tab_type = 'Pro' pour Guitar Pro, 'Chords'/'Tabs'/etc. pour texte.
     content = None pour les tabs GP ou si absent.
     """
     soup = BeautifulSoup(html, 'html.parser')
     div = soup.find('div', class_='js-store')
     if not div:
-        return None, ''
+        return None, '', '', ''
     try:
         data = json.loads(str(div['data-content']))
         page_data = data['store']['page']['data']
-        tab_type  = page_data.get('tab', {}).get('type', '')
+        tab       = page_data.get('tab', {})
+        tab_type  = tab.get('type', '')
         content   = (
             page_data.get('tab_view', {})
                      .get('wiki_tab', {})
                      .get('content', '')
         )
-        return content or None, tab_type
+        song_name   = tab.get('song_name', '')
+        artist_name = tab.get('artist_name', '')
+        return content or None, tab_type, song_name, artist_name
     except (json.JSONDecodeError, KeyError, TypeError):
-        return None, ''
+        return None, '', '', ''
 
 
 def extract_generic(soup: BeautifulSoup) -> str:
@@ -137,27 +137,28 @@ def extract_generic(soup: BeautifulSoup) -> str:
     return soup.get_text('\n')
 
 
-def scrape(url: str, dump: bool = False) -> str | None:
+def scrape(url: str, dump: bool = False) -> tuple[str | None, str | None]:
     """
-    Retourne le contenu brut du tab (tags UG préservés pour le docx).
-    Retourne None si c'est un tab Guitar Pro (géré par scrape_gp).
+    Retourne le contenu brut du tab (tags UG préservés pour le docx) et le titre.
+    Retourne (None, None) si c'est un tab Guitar Pro (géré par scrape_gp).
     """
     print(f"→ Scraping : {url}", file=sys.stderr)
     html = fetch(url)
 
     if dump:
-        with open('ug_debug.html', 'w', encoding='utf-8') as f:
+        with open(os.path.join(OUTPUT_DIR, 'ug_debug.html'), 'w', encoding='utf-8') as f:
             f.write(html)
-        print("  → Raw HTML saved to ug_debug.html", file=sys.stderr)
+        print("  → Raw HTML saved to output/ug_debug.html", file=sys.stderr)
 
     if 'ultimate-guitar' in url:
-        content, tab_type = get_ug_tab_info(html)
+        content, tab_type, song_name, artist_name = get_ug_tab_info(html)
         if tab_type == 'Pro':
             print("  → Guitar Pro tab detected.", file=sys.stderr)
-            return None
+            return None, None
         if content:
             print("  → UG data extracted.", file=sys.stderr)
-            return content
+            title = f"{artist_name} - {song_name}" if artist_name and song_name else None
+            return content, title
         print("  → UG JSON not found, falling back to generic extractor.", file=sys.stderr)
 
     soup = BeautifulSoup(html, 'html.parser')
@@ -165,7 +166,7 @@ def scrape(url: str, dump: bool = False) -> str | None:
                      'aside', 'iframe', 'noscript', 'button']):
         tag.decompose()
 
-    return extract_generic(soup)
+    return extract_generic(soup), None
 
 
 # ─── GP Download via Playwright ──────────────────────────────────────────────
@@ -217,7 +218,7 @@ def scrape_gp(url: str, base_path: str, dump: bool = False) -> bool:
             pass
 
         if dump:
-            with open('ug_debug.html', 'w', encoding='utf-8') as f:
+            with open(os.path.join(OUTPUT_DIR, 'ug_debug.html'), 'w', encoding='utf-8') as f:
                 f.write(page.content())
 
         # Détecter si connecté via cookie bbuserid
@@ -225,6 +226,11 @@ def scrape_gp(url: str, base_path: str, dump: bool = False) -> bool:
         logged_in = cookies.get('bbuserid', '0') not in ('', '0', None)
 
         if not logged_in:
+            if not sys.stdin.isatty():
+                print("  → Not logged in and no TTY available — skipping GP download.", file=sys.stderr)
+                print("  → Run interactively once to sign in and persist the session.", file=sys.stderr)
+                ctx.close()
+                return False
             print("  → Not logged in — sign in to Ultimate Guitar in the browser window.", file=sys.stderr)
             page.goto('https://www.ultimate-guitar.com/')
             input("  → Press Enter once you're signed in (keep the browser open): ")
@@ -492,15 +498,23 @@ Exemples :
         sys.exit(1)
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    base      = re.sub(r'\.txt$', '', filename_from_url(args.url))
-    base_path = os.path.join(OUTPUT_DIR, base)
 
-    raw = scrape(args.url, dump=args.dump)
+    raw, page_title = scrape(args.url, dump=args.dump)
 
     if raw is None:
-        # Tab Guitar Pro
-        scrape_gp(args.url, base_path, dump=args.dump)
+        # Tab Guitar Pro - need a base path
+        gp_base = re.sub(r'\.txt$', '', filename_from_url(args.url))
+        scrape_gp(args.url, os.path.join(OUTPUT_DIR, gp_base), dump=args.dump)
         return
+
+    # Filename: prefer extracted title, fall back to URL parsing
+    if page_title:
+        safe = re.sub(r'[<>:"/\\|?*]', '', page_title)
+        base = safe
+    else:
+        base = re.sub(r'\.txt$', '', filename_from_url(args.url))
+
+    base_path = os.path.join(OUTPUT_DIR, base)
 
     txt_path = base_path + '.txt'
     with open(txt_path, 'w', encoding='utf-8') as f:
